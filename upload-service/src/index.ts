@@ -3,7 +3,7 @@ import morgan from 'morgan';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './config/swagger';
+import { swaggerSpec } from './config/swagger-spec';
 import uploadRoutes from './routes/upload.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { StorageService } from './services/storage.service';
