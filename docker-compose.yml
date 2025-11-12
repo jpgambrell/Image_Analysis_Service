@@ -73,6 +73,7 @@ services:
       KAFKA_TOPIC_UPLOAD: image-uploaded
       KAFKA_TOPIC_ANALYSIS: image-analyzed
       IMAGES_DIR: /app/images
+      OLLAMA_URL: http://ollama:11434
     volumes:
       - images-volume:/app/images
     networks:
@@ -80,12 +81,37 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
+
+  # Ollama Service for LLaVA image analysis
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - images-volume:/images:ro
+      - ollama-models:/root/.ollama
+    networks:
+      - kafka-net
+    restart: unless-stopped
+    # Uncomment if you have NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   kafka-data:
     driver: local
   images-volume:
+    driver: local
+  ollama-models:
     driver: local
 
 networks:

@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { ImageAnalysisResult } from '../types';
+import { OllamaService } from './ollama.service';
 
 const IMAGES_DIR = process.env.IMAGES_DIR || './images';
 
@@ -8,8 +9,7 @@ export class ImageAnalysisService {
   private static analysisResults: Map<string, ImageAnalysisResult> = new Map();
 
   /**
-   * Placeholder analysis function
-   * TODO: Integrate with ollama/llava for actual image analysis
+   * Analyzes an image using Ollama/LLaVA
    */
   static async analyzeImage(imageId: string, filename: string): Promise<ImageAnalysisResult> {
     console.log(`Starting analysis for image: ${imageId} (${filename})`);
@@ -22,32 +22,30 @@ export class ImageAnalysisService {
       throw new Error(`Image file not found: ${filename}`);
     }
 
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Call Ollama service for analysis
+      const ollamaResult = await OllamaService.analyzeImage(filename);
 
-    // Placeholder analysis result
-    // In the future, this will call ollama/llava API
-    const result: ImageAnalysisResult = {
-      imageId,
-      filename,
-      analyzedAt: new Date(),
-      keywords: [
-        'placeholder',
-        'pending-integration',
-        'awaiting-llava'
-      ],
-      detectedText: [
-        'Text detection pending ollama/llava integration'
-      ],
-      description: 'This is a placeholder analysis result. Integration with ollama/llava is pending.',
-      status: 'completed'
-    };
+      // Create analysis result
+      const result: ImageAnalysisResult = {
+        imageId,
+        filename,
+        analyzedAt: new Date(),
+        keywords: ollamaResult.keywords,
+        detectedText: ollamaResult.detectedText,
+        description: ollamaResult.description,
+        status: 'completed'
+      };
 
-    // Store result
-    this.analysisResults.set(imageId, result);
+      // Store result
+      this.analysisResults.set(imageId, result);
 
-    console.log(`Analysis completed for image: ${imageId}`);
-    return result;
+      console.log(`Analysis completed for image: ${imageId}`);
+      return result;
+    } catch (error) {
+      console.error(`Error analyzing image ${imageId}:`, error);
+      throw error;
+    }
   }
 
   static async getAnalysisResult(imageId: string): Promise<ImageAnalysisResult | undefined> {

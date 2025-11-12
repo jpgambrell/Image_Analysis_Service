@@ -74,9 +74,9 @@ export class UploadController {
         return;
       }
 
-      const imageId = uuidv4();
-      const fileExtension = path.extname(req.file.originalname);
-      const filename = `${imageId}${fileExtension}`;
+      // Use the filename that multer already generated
+      const filename = req.file.filename;
+      const imageId = path.parse(filename).name; // Get filename without extension
 
       const imageData: UploadedImage = {
         id: imageId,

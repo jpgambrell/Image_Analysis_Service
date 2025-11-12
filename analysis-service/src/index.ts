@@ -8,6 +8,7 @@ import analysisRoutes from './routes/analysis.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { kafkaConsumer } from './services/kafka.consumer.service';
 import { kafkaProducer } from './services/kafka.producer';
+import { OllamaService } from './services/ollama.service';
 
 // Load environment variables
 dotenv.config();
@@ -84,6 +85,21 @@ async function startServer() {
           throw new Error('Could not connect to Kafka');
         }
       }
+    }
+
+    // Check Ollama availability and ensure model is loaded
+    console.log('Checking Ollama availability...');
+    const ollamaAvailable = await OllamaService.healthCheck();
+    if (ollamaAvailable) {
+      console.log('Ollama is available, ensuring model is loaded...');
+      try {
+        await OllamaService.ensureModel();
+      } catch (error) {
+        console.warn('Failed to ensure Ollama model:', error);
+        console.log('Service will continue, but image analysis may fail until model is available');
+      }
+    } else {
+      console.warn('Ollama is not available. Image analysis will fail until Ollama is running.');
     }
 
     // Start consuming messages
