@@ -40,9 +40,14 @@ A microservices-based image upload and analysis system built with Node.js/Expres
 
 ## Prerequisites
 
+### For Docker Usage (Recommended)
 - Docker and Docker Compose
-- Node.js 20+ (for local development)
+
+### For Local Development (Optional)
+- Node.js 20+
 - npm or yarn
+
+**Note:** If you're using Docker (recommended), you only need Docker installed. Node.js and npm are already included in the containers.
 
 ## Quick Start
 
