@@ -1,12 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { UploadedImage } from '../types';
+import { DatabaseService } from './database.service';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 
 export class StorageService {
-  private static images: Map<string, UploadedImage> = new Map();
-
   static async initialize(): Promise<void> {
     try {
       await fs.access(UPLOAD_DIR);
@@ -18,19 +17,19 @@ export class StorageService {
   }
 
   static async saveImage(imageData: UploadedImage): Promise<void> {
-    this.images.set(imageData.id, imageData);
+    await DatabaseService.insertImage(imageData);
   }
 
-  static async getImage(id: string): Promise<UploadedImage | undefined> {
-    return this.images.get(id);
+  static async getImage(id: string): Promise<UploadedImage | null> {
+    return await DatabaseService.getImageById(id);
   }
 
   static async getAllImages(): Promise<UploadedImage[]> {
-    return Array.from(this.images.values());
+    return await DatabaseService.getAllImages();
   }
 
   static async getImagePath(id: string): Promise<string | null> {
-    const image = this.images.get(id);
+    const image = await DatabaseService.getImageById(id);
     if (!image) return null;
 
     const imagePath = path.join(UPLOAD_DIR, image.filename);
@@ -44,13 +43,13 @@ export class StorageService {
   }
 
   static async deleteImage(id: string): Promise<boolean> {
-    const image = this.images.get(id);
+    const image = await DatabaseService.getImageById(id);
     if (!image) return false;
 
     try {
       const imagePath = path.join(UPLOAD_DIR, image.filename);
       await fs.unlink(imagePath);
-      this.images.delete(id);
+      await DatabaseService.deleteImage(id);
       return true;
     } catch (error) {
       console.error(`Error deleting image ${id}:`, error);

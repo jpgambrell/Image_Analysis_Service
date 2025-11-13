@@ -2,12 +2,11 @@ import path from 'path';
 import fs from 'fs/promises';
 import { ImageAnalysisResult } from '../types';
 import { OllamaService } from './ollama.service';
+import { DatabaseService } from './database.service';
 
 const IMAGES_DIR = process.env.IMAGES_DIR || './images';
 
 export class ImageAnalysisService {
-  private static analysisResults: Map<string, ImageAnalysisResult> = new Map();
-
   /**
    * Analyzes an image using Ollama/LLaVA
    */
@@ -37,8 +36,8 @@ export class ImageAnalysisService {
         status: 'completed'
       };
 
-      // Store result
-      this.analysisResults.set(imageId, result);
+      // Store result in database
+      await DatabaseService.insertAnalysis(result);
 
       console.log(`Analysis completed for image: ${imageId}`);
       return result;
@@ -48,15 +47,15 @@ export class ImageAnalysisService {
     }
   }
 
-  static async getAnalysisResult(imageId: string): Promise<ImageAnalysisResult | undefined> {
-    return this.analysisResults.get(imageId);
+  static async getAnalysisResult(imageId: string): Promise<ImageAnalysisResult | null> {
+    return await DatabaseService.getAnalysisByImageId(imageId);
   }
 
   static async getAllAnalysisResults(): Promise<ImageAnalysisResult[]> {
-    return Array.from(this.analysisResults.values());
+    return await DatabaseService.getAllAnalysis();
   }
 
-  static markAsProcessing(imageId: string, filename: string): void {
+  static async markAsProcessing(imageId: string, filename: string): Promise<void> {
     const result: ImageAnalysisResult = {
       imageId,
       filename,
@@ -66,10 +65,10 @@ export class ImageAnalysisService {
       description: '',
       status: 'processing'
     };
-    this.analysisResults.set(imageId, result);
+    await DatabaseService.insertAnalysis(result);
   }
 
-  static markAsFailed(imageId: string, filename: string, error: string): void {
+  static async markAsFailed(imageId: string, filename: string, error: string): Promise<void> {
     const result: ImageAnalysisResult = {
       imageId,
       filename,
@@ -80,6 +79,6 @@ export class ImageAnalysisService {
       status: 'failed',
       error
     };
-    this.analysisResults.set(imageId, result);
+    await DatabaseService.insertAnalysis(result);
   }
 }

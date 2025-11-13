@@ -47,12 +47,15 @@ services:
       UPLOAD_DIR: /app/images
       MAX_FILE_SIZE: 10485760
       ALLOWED_FORMATS: image/jpeg,image/png,image/gif,image/webp
+      DATABASE_URL: postgresql://imageservice:imageservice_password@postgres:5432/imageservice
     volumes:
       - images-volume:/app/images
     networks:
       - kafka-net
     depends_on:
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
@@ -74,12 +77,15 @@ services:
       KAFKA_TOPIC_ANALYSIS: image-analyzed
       IMAGES_DIR: /app/images
       OLLAMA_URL: http://ollama:11434
+      DATABASE_URL: postgresql://imageservice:imageservice_password@postgres:5432/imageservice
     volumes:
       - images-volume:/app/images
     networks:
       - kafka-net
     depends_on:
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       ollama:
         condition: service_started
@@ -106,12 +112,36 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: imageservice
+      POSTGRES_USER: imageservice
+      POSTGRES_PASSWORD: imageservice_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imageservice -d imageservice"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   kafka-data:
     driver: local
   images-volume:
     driver: local
   ollama-models:
+    driver: local
+  postgres-data:
     driver: local
 
 networks:

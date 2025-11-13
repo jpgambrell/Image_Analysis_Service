@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { kafkaConsumer } from './services/kafka.consumer.service';
 import { kafkaProducer } from './services/kafka.producer';
 import { OllamaService } from './services/ollama.service';
+import { DatabaseService } from './services/database.service';
 
 // Load environment variables
 dotenv.config();
@@ -59,6 +60,9 @@ app.use(errorHandler);
 async function startServer() {
   try {
     console.log('Initializing analysis service...');
+
+    // Initialize database
+    await DatabaseService.initialize();
 
     // Connect to Kafka (with retry logic)
     let kafkaConnected = false;
@@ -122,6 +126,7 @@ process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   await kafkaConsumer.disconnect();
   await kafkaProducer.disconnect();
+  await DatabaseService.close();
   process.exit(0);
 });
 
@@ -129,6 +134,7 @@ process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   await kafkaConsumer.disconnect();
   await kafkaProducer.disconnect();
+  await DatabaseService.close();
   process.exit(0);
 });
 

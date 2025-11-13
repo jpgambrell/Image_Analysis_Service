@@ -86,7 +86,7 @@ export class KafkaConsumerService {
       console.log(`Received upload event for image: ${eventData.imageId}`);
 
       // Mark as processing
-      ImageAnalysisService.markAsProcessing(eventData.imageId, eventData.filename);
+      await ImageAnalysisService.markAsProcessing(eventData.imageId, eventData.filename);
 
       // Analyze the image
       const result = await ImageAnalysisService.analyzeImage(
@@ -105,7 +105,7 @@ export class KafkaConsumerService {
       try {
         if (message.value) {
           const eventData: ImageUploadEvent = JSON.parse(message.value.toString());
-          ImageAnalysisService.markAsFailed(
+          await ImageAnalysisService.markAsFailed(
             eventData.imageId,
             eventData.filename,
             error instanceof Error ? error.message : 'Unknown error'

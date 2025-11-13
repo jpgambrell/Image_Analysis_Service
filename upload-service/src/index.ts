@@ -7,6 +7,7 @@ import { swaggerSpec } from './config/swagger-spec';
 import uploadRoutes from './routes/upload.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { StorageService } from './services/storage.service';
+import { DatabaseService } from './services/database.service';
 import { kafkaProducer } from './services/kafka.producer';
 
 // Load environment variables
@@ -56,6 +57,9 @@ async function startServer() {
   try {
     console.log('Initializing services...');
 
+    // Initialize database
+    await DatabaseService.initialize();
+
     // Initialize storage
     await StorageService.initialize();
 
@@ -96,12 +100,14 @@ async function startServer() {
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   await kafkaProducer.disconnect();
+  await DatabaseService.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   await kafkaProducer.disconnect();
+  await DatabaseService.close();
   process.exit(0);
 });
 
