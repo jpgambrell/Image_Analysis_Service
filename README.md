@@ -8,9 +8,21 @@ A microservices-based image upload and analysis system built with Node.js/Expres
 ┌─────────────────┐      ┌──────────┐      ┌──────────────────┐
 │ Upload Service  │─────>│  Kafka   │─────>│ Analysis Service │
 │ (Port 3000)     │      │ (KRaft)  │      │ (Port 3001)      │
-└─────────────────┘      └──────────┘      └──────────────────┘
-        │                                            │
-        └────────────> Shared Volume <──────────────┘
+└────────┬────────┘      └──────────┘      └────────┬─────────┘
+         │                                           │
+         │                                           │
+         ├───────────> Shared Volume <───────────────┤
+         │               (Images)                    │
+         │                                           │
+         │         ┌──────────────────┐              │
+         └────────>│   PostgreSQL     │<─────────────┘
+                   │   (Port 5432)    │
+                   └──────────────────┘
+
+         ┌──────────────────┐
+         │  Ollama/LLaVA    │
+         │  (Port 11434)    │<───────────────────────┘
+         └──────────────────┘
 ```
 
 ## Features
@@ -21,21 +33,24 @@ A microservices-based image upload and analysis system built with Node.js/Expres
 - Supported formats: JPEG, PNG, GIF, WebP
 - Maximum file size: 10MB
 - Kafka producer for upload events
-- Image metadata management
+- PostgreSQL database for image metadata persistence
 - List and retrieve uploaded images
 - Swagger API documentation
 
 ### Analysis Service
 - Kafka consumer for upload events
-- Placeholder image analysis (ready for ollama/llava integration)
-- Analysis results storage
+- Ollama/LLaVA integration for AI-powered image analysis
+- Extracts keywords, descriptions, and detected text from images
+- PostgreSQL database for analysis results persistence
 - REST API for querying analysis results
 - Swagger API documentation
 
 ### Infrastructure
 - Kafka in KRaft mode (no Zookeeper required)
+- PostgreSQL 16 for persistent data storage
+- Ollama with LLaVA vision model for image analysis
 - Docker containerization for all services
-- Shared volume for image storage
+- Shared volume for image file storage
 - Health check endpoints
 
 ## Prerequisites
@@ -65,6 +80,8 @@ A microservices-based image upload and analysis system built with Node.js/Expres
 
    This will start:
    - Kafka broker (KRaft mode) on ports 9092 (internal) and 9094 (external)
+   - PostgreSQL database on port 5432
+   - Ollama with LLaVA model on port 11434
    - Upload service on port 3000
    - Analysis service on port 3001
 
@@ -166,9 +183,9 @@ Response:
     "imageId": "uuid-here",
     "filename": "uuid.jpg",
     "analyzedAt": "2024-01-01T00:00:00.000Z",
-    "keywords": ["placeholder", "pending-integration", "awaiting-llava"],
-    "detectedText": ["Text detection pending ollama/llava integration"],
-    "description": "This is a placeholder analysis result.",
+    "keywords": ["mountain", "landscape", "nature", "sunset"],
+    "detectedText": ["Welcome", "National Park"],
+    "description": "A scenic mountain landscape at sunset with vibrant colors in the sky.",
     "status": "completed"
   }
 }
@@ -180,57 +197,6 @@ Interactive API documentation is available via Swagger UI:
 
 - **Upload Service**: http://localhost:3000/api-docs
 - **Analysis Service**: http://localhost:3001/api-docs
-
-## Project Structure
-
-```
-KafkaImageService/
-├── upload-service/
-│   ├── src/
-│   │   ├── index.ts                 # Entry point
-│   │   ├── routes/
-│   │   │   └── upload.routes.ts     # Route definitions
-│   │   ├── controllers/
-│   │   │   └── upload.controller.ts # Request handlers
-│   │   ├── services/
-│   │   │   ├── storage.service.ts   # Image storage management
-│   │   │   └── kafka.producer.ts    # Kafka producer
-│   │   ├── middleware/
-│   │   │   ├── validation.middleware.ts
-│   │   │   └── error.middleware.ts
-│   │   ├── config/
-│   │   │   └── swagger.ts           # Swagger configuration
-│   │   └── types/
-│   │       └── index.ts             # TypeScript types
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── Dockerfile
-│   └── .env.example
-├── analysis-service/
-│   ├── src/
-│   │   ├── index.ts                 # Entry point
-│   │   ├── routes/
-│   │   │   └── analysis.routes.ts
-│   │   ├── controllers/
-│   │   │   └── analysis.controller.ts
-│   │   ├── services/
-│   │   │   ├── kafka.consumer.service.ts
-│   │   │   ├── kafka.producer.ts
-│   │   │   └── image.analysis.service.ts
-│   │   ├── middleware/
-│   │   │   └── error.middleware.ts
-│   │   ├── config/
-│   │   │   └── swagger.ts
-│   │   └── types/
-│   │       └── index.ts
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── Dockerfile
-│   └── .env.example
-├── docker-compose.yml
-├── .gitignore
-└── README.md
-```
 
 ## Configuration
 
@@ -245,6 +211,7 @@ KAFKA_TOPIC_UPLOAD=image-uploaded
 UPLOAD_DIR=/app/images
 MAX_FILE_SIZE=10485760
 ALLOWED_FORMATS=image/jpeg,image/png,image/gif,image/webp
+DATABASE_URL=postgresql://imageservice:imageservice_password@postgres:5432/imageservice
 ```
 
 ### Analysis Service Environment Variables
@@ -258,6 +225,9 @@ KAFKA_GROUP_ID=analysis-group
 KAFKA_TOPIC_UPLOAD=image-uploaded
 KAFKA_TOPIC_ANALYSIS=image-analyzed
 IMAGES_DIR=/app/images
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_MODEL=llava:latest
+DATABASE_URL=postgresql://imageservice:imageservice_password@postgres:5432/imageservice
 ```
 
 ## Kafka Topics
@@ -269,34 +239,35 @@ The system uses two Kafka topics:
 
 Topics are automatically created when first used (auto-create enabled).
 
-## Integration with ollama/llava
+## Database Schema
 
-The analysis service includes a placeholder implementation for image analysis. To integrate with your existing ollama/llava project:
+The system uses PostgreSQL with two main tables:
 
-1. Locate the analysis logic in [analysis-service/src/services/image.analysis.service.ts](analysis-service/src/services/image.analysis.service.ts)
-2. Replace the `analyzeImage` method with your ollama/llava integration
-3. Update the response structure if needed to include your analysis results
+### `images` Table
+Stores metadata for uploaded images:
+- `id` (UUID) - Primary key
+- `filename` - Stored filename
+- `original_name` - Original upload filename
+- `mimetype` - Image MIME type
+- `size` - File size in bytes
+- `uploaded_at` - Upload timestamp
+- `path` - Storage path
+- `created_at`, `updated_at` - Timestamps
 
-Example integration point:
-```typescript
-static async analyzeImage(imageId: string, filename: string): Promise<ImageAnalysisResult> {
-  // TODO: Replace with actual ollama/llava API call
-  // const response = await fetch('http://ollama:11434/api/generate', {...});
-  // Parse response and extract keywords, text, description
+### `image_analysis` Table
+Stores AI analysis results:
+- `id` (Serial) - Primary key
+- `image_id` (UUID) - Foreign key to images table
+- `filename` - Image filename
+- `description` - AI-generated description
+- `keywords` - Array of extracted keywords
+- `detected_text` - Array of text found in image
+- `status` - Analysis status (pending/processing/completed/failed)
+- `error` - Error message if analysis failed
+- `analyzed_at` - Analysis timestamp
+- `created_at`, `updated_at` - Timestamps
 
-  const result: ImageAnalysisResult = {
-    imageId,
-    filename,
-    analyzedAt: new Date(),
-    keywords: [], // From ollama/llava
-    detectedText: [], // From ollama/llava
-    description: '', // From ollama/llava
-    status: 'completed'
-  };
-
-  return result;
-}
-```
+The database schema is automatically initialized on first startup via [db/init.sql](db/init.sql).
 
 ## Monitoring and Debugging
 
@@ -335,6 +306,19 @@ docker exec -it kafka kafka-topics.sh --bootstrap-server localhost:9092 --descri
 docker exec -it kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic image-uploaded --from-beginning
 ```
 
+### PostgreSQL Database
+
+```bash
+# Connect to database
+docker exec -it postgres psql -U imageservice -d imageservice
+
+# View images table
+docker exec -it postgres psql -U imageservice -d imageservice -c "SELECT * FROM images;"
+
+# View analysis results
+docker exec -it postgres psql -U imageservice -d imageservice -c "SELECT * FROM image_analysis;"
+```
+
 ## Stopping and Cleaning Up
 
 ```bash
@@ -351,7 +335,7 @@ docker-compose up --build
 ## Troubleshooting
 
 ### Services won't start
-- Ensure ports 3000, 3001, 9092, and 9094 are not in use
+- Ensure ports 3000, 3001, 5432, 9092, 9094, and 11434 are not in use
 - Check Docker daemon is running
 - Verify sufficient disk space for Docker volumes
 
@@ -367,14 +351,14 @@ docker-compose up --build
 
 ## Next Steps
 
-1. Integrate ollama/llava for actual image analysis
-2. Add authentication and authorization
-3. Implement image processing features (resize, compress)
-4. Add database for persistent metadata storage
-5. Implement result caching
-6. Add monitoring and metrics (Prometheus, Grafana)
-7. Implement retry logic for failed analyses
-8. Add integration tests
+1. Add authentication and authorization
+2. Implement image processing features (resize, compress, thumbnail generation)
+3. Implement result caching (Redis)
+4. Add monitoring and metrics (Prometheus, Grafana)
+5. Implement retry logic for failed analyses
+6. Add integration tests
+7. Add pagination for list endpoints
+8. Implement image deletion workflow
 
 ## License
 
