@@ -150,7 +150,7 @@ services:
 
   # Promtail - Log collection agent
   promtail:
-    image: grafana/promtail:2.9.3
+    image: grafana/promtail:3.0.0
     container_name: promtail
     volumes:
       - ./observability/promtail-config.yaml:/etc/promtail/config.yml

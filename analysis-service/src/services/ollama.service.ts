@@ -23,16 +23,24 @@ export class OllamaService {
     const imageBase64 = imageBuffer.toString('base64');
 
     // Construct the prompt with specific instructions
-    const prompt = `Analyze this image and provide the following information:
+    const prompt = `Analyze this image in detail and provide the following information:
 
-1. A brief description (1-2 sentences) of what is shown in the image
-2. Up to 5 keywords that describe the main elements or themes
-3. Any text that appears in the image (if no text is visible, respond with "No text detected")
+1. DESCRIPTION: Write a brief description (1-2 sentences) of what is shown in the image.
 
-Please format your response as follows:
+2. KEYWORDS: List up to 5 keywords that describe the main elements, objects, or themes in the image.
+
+3. TEXT: Look very carefully for ANY text, words, letters, numbers, or written content visible in the image. This includes:
+   - Signs, labels, or captions
+   - Text on objects, products, or packaging
+   - Handwritten or printed text
+   - Numbers or symbols
+   - Text in any language
+   If you see ANY text at all, list each piece of text you can read. If you cannot see or read any text, respond with "No text detected".
+
+Please format your response EXACTLY as follows:
 DESCRIPTION: [your description here]
 KEYWORDS: [keyword1, keyword2, keyword3, keyword4, keyword5]
-TEXT: [detected text here, or "No text detected"]`;
+TEXT: [list each piece of text you see, separated by commas, or "No text detected"]`;
 
     // Call Ollama API
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
@@ -54,6 +62,15 @@ TEXT: [detected text here, or "No text detected"]`;
 
     const data = await response.json() as { response: string };
     const responseText = data.response;
+
+    // Log the raw response for debugging
+    console.log(JSON.stringify({
+      level: 'debug',
+      message: 'Raw Ollama response received',
+      filename,
+      responseLength: responseText.length,
+      responsePreview: responseText.substring(0, 300)
+    }));
 
     // Parse the structured response
     return this.parseResponse(responseText);
@@ -94,15 +111,30 @@ TEXT: [detected text here, or "No text detected"]`;
       const textMatch = responseText.match(/TEXT:\s*(.+?)$/is);
       if (textMatch) {
         const textStr = textMatch[1].trim();
-        if (textStr.toLowerCase() !== 'no text detected') {
-          // Split by newlines or commas
+        const lowerText = textStr.toLowerCase();
+
+        // Check if it's a "no text" response
+        if (lowerText !== 'no text detected' &&
+            !lowerText.includes('no text') &&
+            !lowerText.includes('not visible') &&
+            !lowerText.includes('cannot see') &&
+            textStr.length > 0) {
+          // Split by newlines, commas, or semicolons
           const textItems = textStr
-            .split(/[,\n]/)
+            .split(/[,;\n]/)
             .map(t => t.trim())
-            .filter(t => t.length > 0);
+            .filter(t => t.length > 0 && t.length < 200); // Filter out overly long strings
           result.detectedText = textItems;
         }
       }
+
+      // Log the raw response for debugging
+      console.log(JSON.stringify({
+        level: 'debug',
+        message: 'Ollama response parsed',
+        detectedTextCount: result.detectedText.length,
+        rawTextSection: textMatch ? textMatch[1].substring(0, 100) : 'not found'
+      }));
 
       // Fallback if parsing failed
       if (!result.description) {
