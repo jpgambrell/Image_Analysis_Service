@@ -5,6 +5,7 @@ export interface ImageUploadEvent {
   size: number;
   uploadedAt: string;
   path: string;
+  correlationId: string;
 }
 
 export interface ImageAnalysisResult {

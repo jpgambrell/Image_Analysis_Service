@@ -83,21 +83,50 @@ export class KafkaConsumerService {
       }
 
       const eventData: ImageUploadEvent = JSON.parse(message.value.toString());
-      console.log(`Received upload event for image: ${eventData.imageId}`);
+      const correlationId = eventData.correlationId || 'unknown';
+
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Received upload event from Kafka',
+        imageId: eventData.imageId,
+        correlationId,
+        action: 'kafka_consume',
+        filename: eventData.filename
+      }));
 
       // Mark as processing
       await ImageAnalysisService.markAsProcessing(eventData.imageId, eventData.filename);
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Image marked as processing',
+        imageId: eventData.imageId,
+        correlationId,
+        action: 'analysis_start'
+      }));
 
       // Analyze the image
       const result = await ImageAnalysisService.analyzeImage(
         eventData.imageId,
         eventData.path
       );
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Image analysis completed',
+        imageId: eventData.imageId,
+        correlationId,
+        action: 'analysis_complete',
+        keywords: result.keywords
+      }));
 
       // Publish analysis result to Kafka
       await kafkaProducer.publishAnalysisResult(result);
-
-      console.log(`Successfully processed image: ${eventData.imageId}`);
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Analysis result published to Kafka',
+        imageId: eventData.imageId,
+        correlationId,
+        action: 'kafka_publish_result'
+      }));
     } catch (error) {
       console.error('Error processing message:', error);
 

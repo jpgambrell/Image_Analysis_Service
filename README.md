@@ -23,6 +23,18 @@ A microservices-based image upload and analysis system built with Node.js/Expres
          │  Ollama/LLaVA    │
          │  (Port 11434)    │<───────────────────────┘
          └──────────────────┘
+
+                    Observability Stack
+         ┌────────────────────────────────────────────┐
+         │                                            │
+         │  ┌──────────┐   ┌──────┐   ┌──────────┐  │
+         │  │ Promtail │──>│ Loki │──>│ Grafana  │  │
+         │  │  (Agent) │   │(3100)│   │  (3002)  │  │
+         │  └─────┬────┘   └──────┘   └──────────┘  │
+         │        │                                   │
+         │        └─> Collects logs from all         │
+         │            Docker containers              │
+         └────────────────────────────────────────────┘
 ```
 
 ## Features
@@ -52,6 +64,13 @@ A microservices-based image upload and analysis system built with Node.js/Expres
 - Docker containerization for all services
 - Shared volume for image file storage
 - Health check endpoints
+
+### Observability
+- Grafana Loki for centralized log aggregation
+- Promtail for log collection from all containers
+- Grafana dashboards for visualization and tracing
+- Correlation IDs to trace requests through the entire pipeline
+- Real-time log streaming and querying
 
 ## Prerequisites
 
@@ -84,6 +103,9 @@ A microservices-based image upload and analysis system built with Node.js/Expres
    - Ollama with LLaVA model on port 11434
    - Upload service on port 3000
    - Analysis service on port 3001
+   - Loki (log aggregation) on port 3100
+   - Grafana (dashboards) on port 3002
+   - Promtail (log collection agent)
 
 3. **Verify services are running**
    ```bash
@@ -94,9 +116,11 @@ A microservices-based image upload and analysis system built with Node.js/Expres
    curl http://localhost:3001/health
    ```
 
-4. **Access Swagger documentation**
-   - Upload Service: http://localhost:3000/api-docs
-   - Analysis Service: http://localhost:3001/api-docs
+4. **Access web interfaces**
+   - Upload Service API Docs: http://localhost:3000/api-docs
+   - Analysis Service API Docs: http://localhost:3001/api-docs
+   - **Grafana Dashboards**: http://localhost:3002 (username: `admin`, password: `admin`)
+   - Loki API: http://localhost:3100
 
 ### Local Development (Without Docker)
 
@@ -269,6 +293,76 @@ Stores AI analysis results:
 
 The database schema is automatically initialized on first startup via [db/init.sql](db/init.sql).
 
+## Observability & Log Tracing
+
+The system uses **Grafana Loki Stack** for centralized logging and distributed tracing. This allows you to track an image's journey through the entire pipeline.
+
+### Accessing Grafana
+
+1. Open http://localhost:3002
+2. Login with username: `admin`, password: `admin`
+3. Navigate to **Dashboards** → **Image Processing Flow Dashboard**
+
+### Tracing an Image Through the System
+
+Each image upload gets a unique **correlationId** that follows it through:
+1. **Upload Service** - Image received and saved
+2. **Kafka** - Event published
+3. **Analysis Service** - Event consumed, analysis performed
+4. **Database** - Results stored
+
+**To trace an image:**
+1. In Grafana, go to the "Image Processing Flow Dashboard"
+2. Enter an `imageId` or `correlationId` in the variable at the top
+3. View all log entries for that specific image across all services
+
+### Querying Logs with LogQL
+
+Grafana Loki uses LogQL (like PromQL for logs). Here are useful queries:
+
+```logql
+# All logs for a specific image
+{service=~"upload-service|analysis-service"} |= "your-image-id" | json
+
+# All upload events
+{service="upload-service"} |= "upload_start" | json
+
+# All Kafka consume events
+{service="analysis-service"} |= "kafka_consume" | json
+
+# All completed analyses
+{service="analysis-service"} |= "analysis_complete" | json
+
+# All errors
+{service=~"upload-service|analysis-service"} | json | level="error"
+
+# Trace by correlation ID
+{service=~"upload-service|analysis-service"} | json | correlationId="your-correlation-id"
+```
+
+### Structured JSON Logging
+
+All services log in JSON format with these fields:
+- `level`: Log level (info, error, warn)
+- `message`: Human-readable message
+- `imageId`: The image UUID
+- `correlationId`: Trace ID for the entire flow
+- `action`: What action occurred (upload_start, kafka_publish, analysis_complete, etc.)
+- `service`: Which service generated the log
+- Additional context-specific fields (filename, keywords, etc.)
+
+Example log entry:
+```json
+{
+  "level": "info",
+  "message": "Image analysis completed",
+  "imageId": "abc-123",
+  "correlationId": "xyz-789",
+  "action": "analysis_complete",
+  "keywords": ["mountain", "landscape"]
+}
+```
+
 ## Monitoring and Debugging
 
 ### View Logs
@@ -335,7 +429,7 @@ docker-compose up --build
 ## Troubleshooting
 
 ### Services won't start
-- Ensure ports 3000, 3001, 5432, 9092, 9094, and 11434 are not in use
+- Ensure ports 3000, 3001, 3002, 3100, 5432, 9092, 9094, and 11434 are not in use
 - Check Docker daemon is running
 - Verify sufficient disk space for Docker volumes
 

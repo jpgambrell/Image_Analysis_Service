@@ -78,6 +78,18 @@ export class UploadController {
       const filename = req.file.filename;
       const imageId = path.parse(filename).name; // Get filename without extension
 
+      // Generate correlation ID for tracing
+      const correlationId = uuidv4();
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Image upload received',
+        imageId,
+        correlationId,
+        action: 'upload_start',
+        filename: req.file.originalname,
+        size: req.file.size
+      }));
+
       const imageData: UploadedImage = {
         id: imageId,
         filename: filename,
@@ -90,6 +102,13 @@ export class UploadController {
 
       // Save to storage
       await StorageService.saveImage(imageData);
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Image saved to database',
+        imageId,
+        correlationId,
+        action: 'db_save'
+      }));
 
       // Publish to Kafka
       const event: ImageUploadEvent = {
@@ -98,10 +117,18 @@ export class UploadController {
         mimetype: imageData.mimetype,
         size: imageData.size,
         uploadedAt: imageData.uploadedAt.toISOString(),
-        path: filename
+        path: filename,
+        correlationId
       };
 
       await kafkaProducer.publishImageUpload(event);
+      console.log(JSON.stringify({
+        level: 'info',
+        message: 'Upload event published to Kafka',
+        imageId,
+        correlationId,
+        action: 'kafka_publish'
+      }));
 
       res.status(201).json({
         success: true,
