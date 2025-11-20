@@ -30,7 +30,7 @@ export class OllamaService {
 2. KEYWORDS: List up to 5 keywords that describe the main elements, objects, or themes in the image.
 
 3. TEXT: Look very carefully for ANY text, words, letters, numbers, or written content visible in the image. This includes:
-   - Signs, labels, or captions
+   - Signs (especially on building facades), labels, or captions
    - Text on objects, products, or packaging
    - Handwritten or printed text
    - Numbers or symbols
