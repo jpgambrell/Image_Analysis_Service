@@ -8,7 +8,6 @@ const IMAGES_DIR = process.env.IMAGES_DIR || './images';
 export interface OllamaAnalysisResult {
   description: string;
   keywords: string[];
-  detectedText: string[];
 }
 
 export class OllamaService {
@@ -25,22 +24,13 @@ export class OllamaService {
     // Construct the prompt with specific instructions
     const prompt = `Analyze this image in detail and provide the following information:
 
-1. DESCRIPTION: Write a brief description (1-2 sentences) of what is shown in the image.
+1. DESCRIPTION: Write a brief description (2-3 sentences) of what is shown in the image. Include any visible text, signs, or written content in your description.
 
 2. KEYWORDS: List up to 5 keywords that describe the main elements, objects, or themes in the image.
 
-3. TEXT: Look very carefully for ANY text, words, letters, numbers, or written content visible in the image. This includes:
-   - Signs (especially on building facades), labels, or captions
-   - Text on objects, products, or packaging
-   - Handwritten or printed text
-   - Numbers or symbols
-   - Text in any language
-   If you see ANY text at all, list each piece of text you can read. If you cannot see or read any text, respond with "No text detected".
-
 Please format your response EXACTLY as follows:
 DESCRIPTION: [your description here]
-KEYWORDS: [keyword1, keyword2, keyword3, keyword4, keyword5]
-TEXT: [list each piece of text you see, separated by commas, or "No text detected"]`;
+KEYWORDS: [keyword1, keyword2, keyword3, keyword4, keyword5]`;
 
     // Call Ollama API
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
@@ -82,8 +72,7 @@ TEXT: [list each piece of text you see, separated by commas, or "No text detecte
   private static parseResponse(responseText: string): OllamaAnalysisResult {
     const result: OllamaAnalysisResult = {
       description: '',
-      keywords: [],
-      detectedText: []
+      keywords: []
     };
 
     try {
@@ -94,7 +83,7 @@ TEXT: [list each piece of text you see, separated by commas, or "No text detecte
       }
 
       // Extract keywords
-      const keywordsMatch = responseText.match(/KEYWORDS:\s*(.+?)(?=\nTEXT:|$)/is);
+      const keywordsMatch = responseText.match(/KEYWORDS:\s*(.+?)$/is);
       if (keywordsMatch) {
         const keywordsStr = keywordsMatch[1].trim();
         // Handle both comma-separated and array format
@@ -107,33 +96,11 @@ TEXT: [list each piece of text you see, separated by commas, or "No text detecte
         result.keywords = keywords;
       }
 
-      // Extract detected text
-      const textMatch = responseText.match(/TEXT:\s*(.+?)$/is);
-      if (textMatch) {
-        const textStr = textMatch[1].trim();
-        const lowerText = textStr.toLowerCase();
-
-        // Check if it's a "no text" response
-        if (lowerText !== 'no text detected' &&
-            !lowerText.includes('no text') &&
-            !lowerText.includes('not visible') &&
-            !lowerText.includes('cannot see') &&
-            textStr.length > 0) {
-          // Split by newlines, commas, or semicolons
-          const textItems = textStr
-            .split(/[,;\n]/)
-            .map(t => t.trim())
-            .filter(t => t.length > 0 && t.length < 200); // Filter out overly long strings
-          result.detectedText = textItems;
-        }
-      }
-
-      // Log the raw response for debugging
+      // Log the parsed response for debugging
       console.log(JSON.stringify({
         level: 'debug',
         message: 'Ollama response parsed',
-        detectedTextCount: result.detectedText.length,
-        rawTextSection: textMatch ? textMatch[1].substring(0, 100) : 'not found'
+        keywordCount: result.keywords.length
       }));
 
       // Fallback if parsing failed
@@ -148,7 +115,6 @@ TEXT: [list each piece of text you see, separated by commas, or "No text detecte
       // Return fallback values
       result.description = 'Analysis completed but response parsing failed';
       result.keywords = ['image', 'content'];
-      result.detectedText = [];
     }
 
     return result;

@@ -30,13 +30,12 @@ export class DatabaseService {
    */
   static async insertAnalysis(analysis: ImageAnalysisResult): Promise<void> {
     const query = `
-      INSERT INTO image_analysis (image_id, filename, description, keywords, detected_text, status, error, analyzed_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO image_analysis (image_id, filename, description, keywords, status, error, analyzed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (image_id)
       DO UPDATE SET
         description = EXCLUDED.description,
         keywords = EXCLUDED.keywords,
-        detected_text = EXCLUDED.detected_text,
         status = EXCLUDED.status,
         error = EXCLUDED.error,
         analyzed_at = EXCLUDED.analyzed_at
@@ -46,7 +45,6 @@ export class DatabaseService {
       analysis.filename,
       analysis.description || null,
       analysis.keywords,
-      analysis.detectedText,
       analysis.status,
       analysis.error || null,
       analysis.analyzedAt
@@ -72,7 +70,6 @@ export class DatabaseService {
       filename: row.filename,
       description: row.description,
       keywords: row.keywords || [],
-      detectedText: row.detected_text || [],
       status: row.status,
       error: row.error,
       analyzedAt: row.analyzed_at
@@ -91,7 +88,6 @@ export class DatabaseService {
       filename: row.filename,
       description: row.description,
       keywords: row.keywords || [],
-      detectedText: row.detected_text || [],
       status: row.status,
       error: row.error,
       analyzedAt: row.analyzed_at

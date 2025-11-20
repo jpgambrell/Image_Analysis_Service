@@ -31,7 +31,6 @@ export class ImageAnalysisService {
         filename,
         analyzedAt: new Date(),
         keywords: ollamaResult.keywords,
-        detectedText: ollamaResult.detectedText,
         description: ollamaResult.description,
         status: 'completed'
       };
@@ -61,7 +60,6 @@ export class ImageAnalysisService {
       filename,
       analyzedAt: new Date(),
       keywords: [],
-      detectedText: [],
       description: '',
       status: 'processing'
     };
@@ -74,7 +72,6 @@ export class ImageAnalysisService {
       filename,
       analyzedAt: new Date(),
       keywords: [],
-      detectedText: [],
       description: '',
       status: 'failed',
       error

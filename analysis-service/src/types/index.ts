@@ -13,7 +13,6 @@ export interface ImageAnalysisResult {
   filename: string;
   analyzedAt: Date;
   keywords: string[];
-  detectedText: string[];
   description: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;

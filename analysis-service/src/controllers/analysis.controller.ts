@@ -21,10 +21,6 @@ import { ApiResponse, ImageAnalysisResult } from '../types';
  *           type: array
  *           items:
  *             type: string
- *         detectedText:
- *           type: array
- *           items:
- *             type: string
  *         description:
  *           type: string
  *         status:

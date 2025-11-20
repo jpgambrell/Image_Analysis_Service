@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS image_analysis (
     filename VARCHAR(255) NOT NULL,
     description TEXT,
     keywords TEXT[], -- Array of keywords
-    detected_text TEXT[], -- Array of detected text
     status VARCHAR(50) NOT NULL DEFAULT 'processing',
     error TEXT,
     analyzed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

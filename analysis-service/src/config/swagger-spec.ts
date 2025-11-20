@@ -128,11 +128,6 @@ export const swaggerSpec = {
             items: { type: 'string' },
             description: 'Keywords describing the image content'
           },
-          detectedText: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Text detected in the image'
-          },
           description: { type: 'string', description: 'Overall description of the image' },
           status: {
             type: 'string',
